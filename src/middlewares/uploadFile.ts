@@ -11,9 +11,9 @@ const productsStorage = multer.diskStorage({
 })
 
 const usersStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'public/images/usersimages')
-  },
+  // destination: function (req, file, cb) {
+  //   cb(null, 'public/images/usersimages')
+  // },
   filename: function (req, file, cb) {
     cb(null, Date.now() + '-' + file.originalname)
   },

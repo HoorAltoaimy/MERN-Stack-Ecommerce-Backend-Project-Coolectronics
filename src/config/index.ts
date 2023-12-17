@@ -2,12 +2,11 @@ import 'dotenv/config'
 export const dev = {
   app: {
     port: Number(process.env.PORT),
-    
+
     secret_key: String(process.env.secret_key),
     access_key: String(process.env.access_key),
 
-    productsImgPath:
-      process.env.PRODUCTS_DEFAULT_IMAGE_PATH,
+    productsImgPath: process.env.PRODUCTS_DEFAULT_IMAGE_PATH,
     usersImgPath: process.env.USERS_DEFAULT_IMAGE_PATH,
     jwtUserActivationKey: process.env.JWT_USER_ACTIVATION_KEY,
     jwtResetPasswordKey: process.env.JWT_PASSWORD_RESET_KEY,
@@ -17,5 +16,10 @@ export const dev = {
   },
   db: {
     url: process.env.MONGODB_URL,
+  },
+  cloud: {
+    cloudinaryName: process.env.CLOUDINARY_NAME,
+    cloudinaryApiKey: process.env.CLOUDINARY_API_KEY,
+    cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET_KEY,
   },
 }

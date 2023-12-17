@@ -13,7 +13,7 @@ const usersRouter = Router();
 
 // usersRouter.post('/process-register', isLoggedOut, uploadUserImg.single('image'), processRegisterUser)
 
-// usersRouter.post('/activate', isLoggedOut, activateUser)
+// usersRouter.post('/activate', isLoggedOut, validateActivateUser, runValidation, activateUser)
 
 // usersRouter.get('/:id', isLoggedIn, getSingleUser)
 
@@ -33,7 +33,7 @@ usersRouter.get('/', getAllUsers)
 
 usersRouter.post('/process-register', uploadUserImg.single('image'), validateRegisterUser, runValidation, processRegisterUser)
 
-usersRouter.post('/activate', validateActivateUser, runValidation, activateUser)
+usersRouter.post('/activate', activateUser)
 
 usersRouter.get('/:id',getSingleUser)
 

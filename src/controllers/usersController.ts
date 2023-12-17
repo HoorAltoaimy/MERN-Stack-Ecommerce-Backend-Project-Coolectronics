@@ -6,7 +6,7 @@ import {
 } from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import mongoose from "mongoose";
-import slugify from "slugify";
+import {v2 as cloudinary} from 'cloudinary';
 
 import User from "../models/userSchema";
 import { dev } from "../config";
@@ -21,6 +21,12 @@ import { UserType } from "../types";
 import { deleteImageHelper } from "../helper/deleteImages";
 import { createJsonWebToken, verifyJsonWebToken } from "../helper/jwtHelper";
 import ApiError from "../errors/ApiError";
+
+cloudinary.config({ 
+  cloud_name: dev.cloud.cloudinaryName, 
+  api_key: dev.cloud.cloudinaryApiKey, 
+  api_secret: dev.cloud.cloudinaryApiSecret 
+});
 
 const successResponse = (
   res: Response,
@@ -153,7 +159,7 @@ export const processRegisterUser = async (
 
     await handleSendEmail(emailData);
 
-    successResponse(res, 200, "Check your email inbox to activate your account");
+    successResponse(res, 200, "Check your email inbox to activate your account", token);
 
   } catch (error) {
     next(error);
@@ -173,15 +179,24 @@ export const activateUser = async (
     }
 
     const decodedToken = await verifyJsonWebToken(token,
-      String(dev.app.jwtUserActivationKey)) 
+      String(dev.app.jwtUserActivationKey)) as JwtPayload
 
     if (!decodedToken) {
       throw new ApiError(404, "Invalid token");
     }
 
-    await User.create(decodedToken);
+    try {
+      //decodedToken.image -> store in cloudinary -> return a url
+      const response = await cloudinary.uploader.upload(decodedToken.image , {folder: 'Ecommerce-cloudinary'});
+      decodedToken.image = response.secure_url
 
-    successResponse(res, 201, "User is registered successfully");
+      await User.create(decodedToken);
+      
+      successResponse(res, 201, "User is registered successfully");
+    } catch (error: any) {
+      next(error.message);
+    }
+
   } catch (error) {
     if (
       error instanceof TokenExpiredError ||
