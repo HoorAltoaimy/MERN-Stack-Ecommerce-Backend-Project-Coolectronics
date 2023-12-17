@@ -1,279 +1,341 @@
-import { Request, Response, NextFunction } from 'express'
-import { Users } from '../models/userSchema'
-import Jwt, { JwtPayload } from 'jsonwebtoken'
-import bcrypt from 'bcrypt'
-import { sendEmail } from '../services/emailServices'
-import { dev } from '../config'
-import ApiError from '../errors/ApiError'
-import { deleteImage } from '../services/deleteImageService'
+import { Request, Response, NextFunction } from "express";
+import {
+  JsonWebTokenError,
+  JwtPayload,
+  TokenExpiredError,
+} from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import mongoose from "mongoose";
+import slugify from "slugify";
 
-const generateToken = (encodedData: any) => {
-  return Jwt.sign(encodedData, dev.app.secret_key, {
-    expiresIn: '3h',
-  })
-}
+import User from "../models/userSchema";
+import { dev } from "../config";
+import { handleSendEmail } from "../helper/sendEmail";
+import {
+  banUserById,
+  findAllItems,
+  findItemById,
+  unbanUserById,
+} from "../services/userServices";
+import { UserType } from "../types";
+import { deleteImageHelper } from "../helper/deleteImages";
+import { createJsonWebToken, verifyJsonWebToken } from "../helper/jwtHelper";
+import ApiError from "../errors/ApiError";
 
-export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
+const successResponse = (
+  res: Response,
+  statusCode = 200,
+  message = "successful",
+  payload = {}
+) => {
+  res.status(statusCode).send({
+    message,
+    payload: payload,
+  });
+};
+
+export const getAllUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const users = await Users.find()
-    res.status(200).send({
-      message: 'Successfully retrieved all users.',
-      users,
-    })
-  } catch (error) {
-    next(error)
-  }
-}
+    let page = Number(req.query.page);
+    const limit = Number(req.query.limit);
+    const search = req.query.search as string;
 
-export const getOneUser = async (req: Request, res: Response, next: NextFunction) => {
+    const { users, totalPages, currentPage } = await findAllItems(
+      page,
+      limit,
+      search
+    );
+
+    // ! add pagination
+    successResponse(res, 200, 'All users are returned', {users, totalPages, currentPage})
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSingleUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const id = req.params.id
-    const user = await Users.findById(id)
+    const user = await findItemById(id);
 
-    if (!user) {
-      return res.status(404).send({
-        message: 'User not found.',
-      })
+    if(!user){
+      throw new ApiError(404, `No user found with this ${id}`);
     }
 
-    res.status(200).send({
-      message: 'Successfully retrieved the user.',
-      user,
-    })
+    successResponse(res, 200, "Single user is returned", user);
   } catch (error) {
-    next(error)
+    if (error instanceof mongoose.Error.CastError) {
+      const error =  new ApiError(404, "Wrong id!");
+      next(error);
+    } else {
+      next(error);
+    }
   }
-}
+};
 
-export const newUser = async (req: Request, res: Response, next: NextFunction) => {
+export const banUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    let { name, userName, isAdmin, isBan, email, password } = req.body
-    const image = req.file?.path
-    let newUserBody = {
-      name,
-      userName,
-      isAdmin,
-      isBan,
-      image,
+    await banUserById(req.params.id);
+    successResponse(res, 200, "User is banned");
+  } catch (error) {
+    if (error instanceof mongoose.Error.CastError) {
+      const error = new ApiError(404, "no user found with this id");
+      next(error);
+    } else {
+      next(error);
+    }
+  }
+};
+
+export const unbanUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    await unbanUserById(req.params.id);
+    successResponse(res, 200, "User is unbanned");
+  } catch (error) {
+    if (error instanceof mongoose.Error.CastError) {
+      const error = new ApiError(404, "no user found with this id");
+      next(error);
+    } else {
+      next(error);
+    }
+  }
+};
+
+export const processRegisterUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { username, email, password, address, phone } = req.body;
+    const imagePath = req.file?.path;
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const tokenPayload: UserType = {
+      username,
       email,
-      password: await bcrypt.hash(password, 7),
+      password: hashedPassword,
+      address,
+      phone,
+    };
+
+    if (imagePath) {
+      tokenPayload.image = imagePath;
     }
-    if (image) {
-      newUserBody = { ...newUserBody, image }
-    }
-    const token = Jwt.sign(newUserBody, dev.app.secret_key, { expiresIn: '10m' })
-    sendEmail(
-      newUserBody.email,
-      'activate your acount',
-      `<h1>hi , ${name}</h1>
-        <p>you can activate your acount <a href='http://localhost:5050/users/activate/${token}' >hare</a></p>
-        <br>
-        <p>if is not you please ignore this message</p>
-        `
-    )
-    res.status(201).send({
-      message: 'User created successfully.',
-      token,
-    })
+
+    const token = await createJsonWebToken(tokenPayload, String(dev.app.jwtUserActivationKey), '10m')
+
+    const emailData = {
+      email,
+      subject: "Activate your email",
+      html: `<h1> Hello ${username}</h1>
+            <p> Please activate your account by clicking on the following link: 
+            <a href="http://localhost:3000/users/activate/${token}">
+            clicking on the following link </a></p>`,
+    };
+
+    await handleSendEmail(emailData);
+
+    successResponse(res, 200, "Check your email inbox to activate your account");
+
   } catch (error) {
-    next(error)
+    next(error);
   }
-}
+};
 
-export const activateUser = async (req: Request, res: Response, next: NextFunction) => {
+export const activateUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { token } = req.params
+    const {token} = req.body;
+   
+    if (!token) {
+      throw new ApiError(404, "Please provide a token");
+    }
 
-    const decodedToken = await Jwt.verify(token, dev.app.secret_key)
+    const decodedToken = await verifyJsonWebToken(token,
+      String(dev.app.jwtUserActivationKey)) 
+
     if (!decodedToken) {
-      throw ApiError.badRequest(403, 'Token was invalid')
+      throw new ApiError(404, "Invalid token");
     }
 
-    const user = new Users(decodedToken)
-    await user.save()
+    await User.create(decodedToken);
 
-    res.status(200).send({ message: 'User activated successfully.', user: decodedToken })
-  } catch (error: any) {
-    if (error.name === 'TokenExpiredError') {
-      return res
-        .status(400)
-        .send({ message: 'Activation token has expired. Please request a new one.' })
-    }
-
-    console.error('Error activating user:', error)
-    next(error)
-  }
-}
-
-export const updateUser = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const id = req.params.id
-    const { name, userName, isAdmin, isBan } = req.body
-
-    const updatedUser = await Users.findByIdAndUpdate(
-      id,
-      { name, userName, isAdmin, isBan },
-      { new: true }
-    )
-
-    if (!updatedUser) {
-      return res.status(404).send({
-        message: 'User not found.',
-      })
-    }
-
-    res.status(200).send({
-      message: 'User updated successfully.',
-      user: updatedUser,
-    })
+    successResponse(res, 201, "User is registered successfully");
   } catch (error) {
-    next(error)
-  }
-}
-
-export const loginUser = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { email, password } = req.body
-
-    const user = await Users.findOne({ email })
-
-    if (!user || user.isBan) {
-      return res.status(404).send({
-        message: 'User not found.',
-      })
+    if (
+      error instanceof TokenExpiredError ||
+      error instanceof JsonWebTokenError
+    ) {
+      const errorMessage =
+        error instanceof TokenExpiredError
+          ? "Your token has expired"
+          : "invalid token";
+      next(new ApiError(401, errorMessage));
+    } else {
+      next(error);
     }
-    const isPasswordMatch = await bcrypt.compare(password, user.password)
-    if (!isPasswordMatch) {
-      res.clearCookie("access_token")
-      throw ApiError.badRequest(403, 'password is invalid')
-    }
-    res.cookie('access_token', generateToken({ _id: user._id }), {
-      maxAge: 15 * 60 * 1000, //15 minutes
-      httpOnly: true,
-      sameSite: 'none',
-    })
-
-    res.status(200).send({
-      message: 'User login successfully.',
-    })
-  } catch (error) {
-    console.log(error)
-    next(error)
   }
-}
-export const logoutUser = async (req: Request, res: Response, next: NextFunction) => {
+};
+
+export const deleteUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    res.clearCookie('access_token')
-    res.status(200).send({
-      message: 'User logout successfully.',
-    })
-  } catch (error) {
-    next(error)
-  }
-}
-export const updateBan = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const id = req.params.id // Assuming you get id from the route parameters
-    const user = await Users.findById(id)
-
-    if (!user) {
-      throw ApiError.badRequest(404, 'User was not found')
-    }
-
-    user.isBan = !user.isBan
-    await user.save()
-
-    res.status(200).send({
-      message: 'User status is updated',
-    })
-  } catch (error) {
-    next(error)
-  }
-}
-
-export const deleteSingleUser = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const id = req.params.id
-    const user = await Users.findByIdAndDelete(id)
-
-    if (!user) {
-      throw ApiError.badRequest(404, `User not found with this ID: ${id}`)
-    }
+    const id = req.params.id;
+    const user = await User.findByIdAndDelete(id); 
 
     if (user && user.image) {
-      await deleteImage(user.image)
+      if (user.image !== "public/images/usersImages/defaultUserImage.png") {
+        await deleteImageHelper(user.image);
+      }
     }
 
-    res.status(200).json({
-      message: `Deleted user with ID: ${id}`,
-    })
+    successResponse(res, 200, `User ${id} is deleted`);
   } catch (error) {
-    next(error)
+    if (error instanceof mongoose.Error.CastError) {
+      const error = new ApiError(404, "Wrong id");
+      next(error);
+    } else {
+      next(error);
+    }
   }
-}
+};
 
-
-export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+export const updateUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { email } = req.body
-    const user = await Users.findOne({ email })
-    if (!user) {
-      return res.status(404).send({
-        message: 'User not found.',
-      })
+    const id = req.params.id;
+    const { username, email, password, address, phone } = req.body;
+    const imagePath = req.file?.path;
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const updatedUserData: UserType = {
+      username,
+      email,
+      password: hashedPassword,
+      address,
+      phone,
+    };
+
+    if (imagePath) {
+      updatedUserData.image = imagePath;
+    }
+    else{
+      updatedUserData.image = dev.app.usersImgPath
     }
 
-    const resetToken = Jwt.sign({ userId: user._id }, dev.app.secret_key, {
-      expiresIn: '1h',
-    })
-
-    const resetLink = `http://localhost:5050/users/reset-password/${resetToken}`
-    await sendEmail(
-      user.email,
-      'Reset Your Password',
-      `<h1>Hi, ${user.name}</h1>
-        <p>You can reset your password by clicking the following link:</p>
-        <a href='${resetLink}'>Reset Password</a>
-        <br>
-        <p>If you did not request a password reset, please ignore this email.</p>`
-    )
-
-    res.status(200).send({
-      message: 'Password reset email sent successfully. Check your inbox for instructions.',
-      resetToken
-    })
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      updatedUserData,
+      { new: true }
+    );
+   
+    if (updatedUser) {
+      successResponse(res, 200, `User ${id} is updated`, updatedUser);
+    } else {
+      throw new Error(`No user found with this id ${id}`);
+    }
   } catch (error) {
-    next(error)
+    if (error instanceof mongoose.Error.CastError) {
+      const error = new ApiError(404, "Wrong id");
+      next(error);
+    } else {
+      next(error);
+    }
   }
-}
+};
 
-export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+export const forgetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { token, newPassword } = req.body
+    //1-get the email
+    const { email } = req.body;
 
-    // Verify the reset token
-    const decodedToken = Jwt.verify(token, dev.app.secret_key) as JwtPayload
-
-    if (!decodedToken) {
-      return res.status(403).send({
-        message: 'Invalid reset token.',
-      })
-    }
-
-    const user = await Users.findOne({ _id: decodedToken.userId })
-
+    //2-check the existance of the email
+    const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).send({
-        message: 'User not found.',
-      })
+      throw new ApiError(409, "No user exists with this email");
     }
-    user.password = await bcrypt.hash(newPassword, 7)
-    await user.save()
 
-    res.status(200).send({
-      message: 'Password reset successfully.',
-    })
+    //3-create a token
+    const token = await createJsonWebToken({email}, String(dev.app.jwtResetPasswordKey), '10m')
+
+
+    //4-send an email
+    const emailData = {
+      email,
+      subject: "Reset password",
+      html: `<h1> Hello ${user.username}</h1>
+            <p> Please click on the following link: 
+            <a href="http://localhost:3001/users/reset-password/${token}"> reset </a>
+            to reset
+            </p>`, //put the frontend url instead
+    };
+    await handleSendEmail(emailData);
+
+    successResponse(res, 200, "Please check your email to reset", token);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { token, password } = req.body;
+
+    const decoded = await verifyJsonWebToken(token,
+      String(dev.app.jwtResetPasswordKey)) as JwtPayload;
+
+    if (!decoded) {
+      throw new ApiError(400, "invalid token");
+    }
+
+    const updatedPassword = await User.findOneAndUpdate(
+      { email: decoded.email },
+      { $set: { password: bcrypt.hashSync(password, 10) } },
+      { new: true }
+    );
+        console.log(updatedPassword);
+    if(!updatedPassword){
+      throw new ApiError(400, "Password reset is unsuccessful");
+    }
+
+    successResponse(res, 200, "Password reseted successfully");
   } catch (error) {
     next(error)
   }
-}
+};

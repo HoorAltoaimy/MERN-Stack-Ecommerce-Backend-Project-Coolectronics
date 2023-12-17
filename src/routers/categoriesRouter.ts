@@ -1,19 +1,20 @@
-import { Category } from '../models/categorySchema'
 import express from 'express'
-import {
-  createCategory,
-  deletCategoryBySlug,
-  getAllCategories,
-  updateCategoryBySlug,
-} from '../controllers/categoriesController'
-import { validateCategory } from '../middlewares/validator'
-import { runValidation } from '../middlewares/runVaildator'
 
-const router = express.Router()
+import * as categories from '../controllers/categoriesController'
+import { validateCategory } from '../validation/validator'
+import { runValidation } from '../validation/runVaildator'
 
-router.get('/', getAllCategories)
-router.post('/', createCategory, validateCategory, runValidation)
-router.put('/:slug', updateCategoryBySlug, validateCategory, runValidation)
-router.delete('/:slug', deletCategoryBySlug, validateCategory, runValidation)
+const categoriesRouter = express.Router()
 
-export default router
+//isLoggedIn, isAdmin,
+categoriesRouter.get('/', categories.getAllCategories)
+
+categoriesRouter.post('/', validateCategory, runValidation, categories.createCategory)
+
+categoriesRouter.get('/:slug', categories.getSingleCategoryBySlug)
+
+categoriesRouter.put('/:id', validateCategory, runValidation, categories.updateCategoryById)
+
+categoriesRouter.delete('/:id', categories.deletCategoryById)
+
+export default categoriesRouter

@@ -1,6 +1,6 @@
 import express from 'express'
 
-import { isLoggedIn } from '../middlewares/auth'
+import { isLoggedIn } from '../middlewares/authentication'
 
 import { getAllmessageOfUser, sendMessage } from '../controllers/chatController'
 

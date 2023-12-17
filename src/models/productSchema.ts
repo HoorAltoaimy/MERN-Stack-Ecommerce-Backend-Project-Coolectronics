@@ -13,7 +13,7 @@ export interface ProductInterface extends Document {
   quantity: number
   sold: number
   shipping: number
-  discounts: DiscountInterface[]
+  //discounts: DiscountInterface[]
   createdAt?: string
   updatedAt?: string
 }
@@ -74,14 +74,14 @@ const productSchema = new Schema(
       type: Number,
       default: 0,
     },
-    discounts: [
-      {
-        type: { type: String, enum: ['percentage', 'fixed'] },
-        value: Number,
-        start: Date,
-        end: Date,
-      },
-    ],
+    // discounts: [
+    //   {
+    //     type: { type: String, enum: ['percentage', 'fixed'] },
+    //     value: Number,
+    //     start: Date,
+    //     end: Date,
+    //   },
+    // ],
   },
   {
     timestamps: true,

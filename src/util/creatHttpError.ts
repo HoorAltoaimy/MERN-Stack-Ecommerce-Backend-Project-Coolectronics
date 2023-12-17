@@ -1,4 +1,4 @@
-import { Error } from '../validation/types'
+import { Error } from '../types'
 
 export const createHttpError = (status: number, message: string) => {
   const error: Error = new Error()

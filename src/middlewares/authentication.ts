@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import ApiError from '../errors/ApiError'
-import { Users } from '../models/userSchema'
+import { Users } from '../models/xusersSchema'
 import { dev } from '../config'
 import Jwt, { JwtPayload } from 'jsonwebtoken'
 
@@ -16,7 +16,8 @@ export const isLoggedIn = async (req: CustomRequest, res: Response, next: NextFu
       throw ApiError.badRequest(401, 'You are not logged in')
     }
 
-    const decoded = Jwt.verify(accessToken, dev.app.secret_key) as JwtPayload
+    //const decoded = Jwt.verify(accessToken, dev.app.secret_key) as JwtPayload
+    const decoded = Jwt.verify(accessToken, String(dev.app.jwtAccessKey)) as JwtPayload
     if (!decoded) {
       throw ApiError.badRequest(401, 'Invalied access token')
     }

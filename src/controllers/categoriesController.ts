@@ -1,72 +1,108 @@
-import { Category, categorySchema } from '../models/categorySchema'
 import { NextFunction, Request, Response } from 'express'
 import slugify from 'slugify'
-import { createHttpError } from '../util/creatHttpError'
+import mongoose from 'mongoose'
 
-//git
+import { Category } from '../models/categorySchema'
+import ApiError from '../errors/ApiError'
+
+const successResponse = (res: Response, statusCode = 200, message = 'successful', payload = {}) => {
+  res.status(statusCode).send({
+    message,
+    payload: payload,
+  })
+}
+
 export const getAllCategories = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const categories = await Category.find()
-    res.send({
-      message: 'get all categories',
-      payload: categories,
-    })
+
+    if (categories.length !== 0) {
+      successResponse(res, 200, 'return all categories', categories)
+    } else {
+      throw new ApiError(404, 'No categories found')
+    }
   } catch (error) {
     next(error)
   }
 }
 
-//post
 export const createCategory = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { title } = req.body
 
-    const categoryExist = await Category.exists({ title: title })
+    const categoryExist = await Category.exists({ title })
     if (categoryExist) {
-      const error = createHttpError(409, 'Category alrady exist with this title')
-      throw error
+      throw new ApiError(404, 'Category alrady exist with this title')
     }
+
     const newCategory = new Category({
-      title: title,
+      title,
       slug: slugify(title),
     })
-
     await newCategory.save()
-    res.status(201).send({ message: 'category is created' })
+
+    successResponse(res, 201, 'New category is created', newCategory)
   } catch (error) {
     next(error)
   }
 }
 
-//delet
-export const deletCategoryBySlug = async (req: Request, res: Response, next: NextFunction) => {
+export const getSingleCategoryBySlug = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const category = await Category.findOneAndDelete({ slug: req.params.slug })
+    const { slug } = req.params
+    const category = await Category.findOne({ slug })
+
     if (!category) {
-      const error = createHttpError(404, 'Category not found with this slug')
-      throw error
+      throw new ApiError(404, `No category found with this slug ${slug}`)
     }
-    res.send({ message: 'deleted a single category ', payload: category })
+
+    successResponse(res, 200, 'Single category is rendered', category)
   } catch (error) {
-    next(error)
+      next(error)
   }
 }
 
-//put
-export const updateCategoryBySlug = async (req: Request, res: Response, next: NextFunction) => {
+export const deletCategoryById = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id
+    const category = await Category.findByIdAndDelete(id)
+
+    if (!category) {
+      throw new ApiError(404, `No category found with this id ${id}`)
+    }
+
+    successResponse(res, 200, `Category ${id} is deleted`, category)
+  } catch (error) {
+    if (error instanceof mongoose.Error.CastError) {
+      const error = new ApiError(404, 'Wrong id format')
+      next(error)
+    } else {
+      next(error)
+    }
+  }
+}
+
+export const updateCategoryById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (req.body.title) {
       req.body.slug = slugify(req.body.title)
     }
-    const category = await Category.findOneAndUpdate({ slug: req.params.slug }, req.body, {
-      new: true,
-    })
 
-    if (!category) {
-      throw new Error('Category not found with this slug')
+    const id = req.params.id
+    const updatedCategoryData = req.body
+    const updatedCategory = await Category.findByIdAndUpdate(id, updatedCategoryData, { new: true })
+
+    if (!updatedCategory) {
+      throw new ApiError(404, `No category found with this id ${id}`)
     }
-    res.send({ message: 'update a single category ', payload: category })
+
+    successResponse(res, 200, `Category ${id} is updated`, updatedCategory)
   } catch (error) {
-    next(error)
+    if (error instanceof mongoose.Error.CastError) {
+      const error = new ApiError(404, 'Wrong id format')
+      next(error)
+    } else {
+      next(error)
+    }
   }
 }

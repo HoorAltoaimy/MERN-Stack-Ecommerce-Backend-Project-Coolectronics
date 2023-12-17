@@ -7,8 +7,8 @@ import {
   placeOrder,
   updateOrderById,
 } from '../controllers/ordersController'
-import { runValidation } from '../middlewares/runVaildator'
-import { validateIdOrder } from '../middlewares/validator'
+import { runValidation } from '../validation/runVaildator'
+import { validateIdOrder } from '../validation/validator'
 
 const router = express.Router()
 
