@@ -16,7 +16,6 @@ export const valueWithoutExtension = async (imageUrl: string): Promise<string> =
   const lastSegment = pathSegments[pathSegments.length - 1]
 
   //remove the file extinsion (e.g.: .png) from the last segment
-  // const valueWithoutExtension = lastSegment.replace('.jpg', '')
   const valueWithoutExtension = lastSegment.replace(/\.(jpg|jpeg|png)$/i, '')
 
   return valueWithoutExtension

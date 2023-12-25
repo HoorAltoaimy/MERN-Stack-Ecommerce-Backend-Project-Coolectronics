@@ -20,12 +20,13 @@ usersRouter.delete('/:id', isLoggedIn, isAdmin, users.deleteUser)
 
 usersRouter.put('/update-user-info/:id', isLoggedIn, uploadUserImg.single('image'), users.updateUser)
 
-
 usersRouter.put('/update-admin-info/:id', isLoggedIn, uploadUserImg.single('image'), users.updateAdmin)
 
 usersRouter.put('/ban/:id', isLoggedIn, isAdmin, users.banUser)
 
 usersRouter.put('/unban/:id', isLoggedIn, isAdmin, users.unbanUser)
+
+usersRouter.put('/grantRole/:id', isLoggedIn, isAdmin, users.grantRole)
 
 usersRouter.post('/forget-password', users.forgetPassword)
 

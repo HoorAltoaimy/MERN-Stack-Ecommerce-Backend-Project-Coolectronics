@@ -65,6 +65,14 @@ export const unbanUserById = async (id: string) => {
     }
 }
 
+export const grantRoleById = async (id: string) => { 
+    const user = await User.findByIdAndUpdate(id, {isAdmin: true})
+    
+    if(!user){ 
+        throw new ApiError(404, `No user found with this id ${id}`)
+    }
+}
+
 export const deleteUserById = async (id: string) => {
     const user = await User.findByIdAndDelete(id)
   

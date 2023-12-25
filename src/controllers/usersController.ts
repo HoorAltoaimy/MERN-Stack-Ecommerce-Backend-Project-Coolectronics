@@ -7,7 +7,7 @@ import { v2 as cloudinary } from 'cloudinary'
 import User, { UserInterface } from '../models/userSchema'
 import { dev } from '../config'
 import { handleSendEmail } from '../helper/sendEmail'
-import { banUserById, deleteUserById, findAllItems, findItemById, unbanUserById } from '../services/usersServices'
+import { banUserById, deleteUserById, findAllItems, findItemById, grantRoleById, unbanUserById } from '../services/usersServices'
 import { UserType } from '../types'
 import { deleteImageHelper } from '../helper/deleteImages'
 import { createJsonWebToken, verifyJsonWebToken } from '../helper/jwtHelper'
@@ -87,6 +87,20 @@ export const unbanUser = async (req: Request, res: Response, next: NextFunction)
   } catch (error) {
     if (error instanceof mongoose.Error.CastError) {
       const error = new ApiError(404, 'no user found with this id')
+      next(error)
+    } else {
+      next(error)
+    }
+  }
+}
+
+export const grantRole = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await grantRoleById(req.params.id)
+    successResponse(res, 200, 'User is changed to an admin')
+  } catch (error) {
+    if (error instanceof mongoose.Error.CastError) {
+      const error = new ApiError(404, 'No user found with this id')
       next(error)
     } else {
       next(error)
