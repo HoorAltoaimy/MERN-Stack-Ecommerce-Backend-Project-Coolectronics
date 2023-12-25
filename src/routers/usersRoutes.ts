@@ -1,52 +1,34 @@
 import {Router} from 'express';
-import { activateUser, deleteUser, forgetPassword, getAllUsers, getSingleUser, processRegisterUser, resetPassword, updateUser, banUser, unbanUser } from '../controllers/usersController';
+
+import * as users from '../controllers/usersController';
 import { uploadUserImg } from '../middlewares/uploadFile';
 import { isAdmin, isLoggedIn, isLoggedOut } from '../middlewares/authentication';
-import { validateActivateUser, validateRegisterUser, validateUpdateUser } from '../validation/validator';
+import { validateActivateUser, validateRegisterUser } from '../validation/validator';
 import { runValidation } from '../validation/runVaildator';
 
 const usersRouter = Router();
 
-// ! add authentication
+usersRouter.get('/', isLoggedIn, isAdmin, users.getAllUsers)
 
-// usersRouter.get('/', isLoggedIn, isAdmin, getAllUsers)
+usersRouter.post('/process-register', uploadUserImg.single('image'), validateRegisterUser, runValidation, users.processRegisterUser)
 
-// usersRouter.post('/process-register', isLoggedOut, uploadUserImg.single('image'), processRegisterUser)
+usersRouter.post('/activate', isLoggedOut, validateActivateUser, runValidation, users.activateUser)
 
-// usersRouter.post('/activate', isLoggedOut, validateActivateUser, runValidation, activateUser)
+usersRouter.get('/:id', isLoggedIn, users.getSingleUser)
 
-// usersRouter.get('/:id', isLoggedIn, getSingleUser)
+usersRouter.delete('/:id', isLoggedIn, isAdmin, users.deleteUser)
 
-// usersRouter.delete('/:id', isLoggedIn, isAdmin, deleteUser)
+usersRouter.put('/update-user-info/:id', isLoggedIn, uploadUserImg.single('image'), users.updateUser)
 
-// usersRouter.put('/update-user-info/:slug', isLoggedIn, updateUser)
 
-// usersRouter.put('/ban/:id', isLoggedIn, isAdmin, banUser)
+usersRouter.put('/update-admin-info/:id', isLoggedIn, uploadUserImg.single('image'), users.updateAdmin)
 
-// usersRouter.put('/ban/:id', isLoggedIn, isAdmin, banUser)
+usersRouter.put('/ban/:id', isLoggedIn, isAdmin, users.banUser)
 
-// usersRouter.put('/unban/:id', isLoggedIn, isAdmin, unbanUser)
+usersRouter.put('/unban/:id', isLoggedIn, isAdmin, users.unbanUser)
 
-// usersRouter.put('/unban/:id', isLoggedIn, isAdmin, unbanUser)
+usersRouter.post('/forget-password', users.forgetPassword)
 
-usersRouter.get('/', getAllUsers)
-
-usersRouter.post('/process-register', uploadUserImg.single('image'), validateRegisterUser, runValidation, processRegisterUser)
-
-usersRouter.post('/activate', activateUser)
-
-usersRouter.get('/:id',getSingleUser)
-
-usersRouter.delete('/:id',deleteUser)
-
-usersRouter.put('/update-user-info/:id', uploadUserImg.single('image'), validateUpdateUser, runValidation, updateUser)
-
-usersRouter.put('/ban/:id', banUser)
-
-usersRouter.put('/unban/:id',unbanUser)
-
-usersRouter.post('/forget-password', forgetPassword)
-
-usersRouter.put('/change-password/reset-password', resetPassword)
+usersRouter.put('/reset-password', users.resetPassword)
 
 export default usersRouter

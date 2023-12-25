@@ -34,14 +34,4 @@ productsRouter.put(
   products.updateProduct
 )
 
-//productsRouter.get('/discount', products.getDiscountedProducts)
-// productsRouter.put(
-//   '/update-product-discount/:id',
-//   isLoggedIn,
-//   isAdmin,
-//   validateDiscount,
-//   runValidation,
-//   products.updateProductDiscount
-// )
-
 export default productsRouter

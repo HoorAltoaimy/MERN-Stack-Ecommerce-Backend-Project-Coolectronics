@@ -1,6 +1,7 @@
 import express, { Application } from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
+import morgan from 'morgan'
 //import mongoose from 'mongoose'
 //import { config } from 'dotenv'
 
@@ -13,19 +14,25 @@ import productsRouter from './routers/productsRouter'
 import ordersRouter from './routers/ordersRouter'
 import categoreisRouter from './routers/categoriesRouter'
 import myLogger from './middlewares/logger'
-import { createError } from './util/createError'
+import authenticationRouter from './routers/authenticationRoutes'
+
 
 //config()
 const app: Application = express()
 const PORT: number = dev.app.port
 //const URL = process.env.MONGODB_URL as string
 
+app.use(morgan('dev'))
 app.use('/public', express.static('public'))
 app.use(myLogger)
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 app.use(cookieParser())
-app.use(cors())
+// app.use(cors())
+app.use(cors({
+  origin: 'http://localhost:3000', //! change url from local to the deployed
+  credentials: true
+}))
 
 app.get('/', (req, res) => {
   res.send('healthe checkup')
@@ -35,7 +42,7 @@ app.use('/api/users', usersRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/categories', categoreisRouter)
-//app.use('/auth', authenticationRouter)
+app.use('/api/auth', authenticationRouter)
 
 // app.use((req, res, next) => {
 //   const error = createError(404, 'Rout not found')

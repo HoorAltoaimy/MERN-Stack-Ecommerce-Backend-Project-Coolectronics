@@ -15,13 +15,12 @@ export interface ErrorInterface {
   message?: string
 }
 
-//-------------------------------------
-
 export type ProductType = {
   _id: string;
-  name: string;
+  title: string;
   slug: string;
   price: number;
+  image: string;
   description: string;
   category: String;
   quantity: number; 
@@ -29,7 +28,7 @@ export type ProductType = {
   shipping: number;
 }
 
-export type ProductInput = Omit<ProductType, '_id'>;
+export type ProductInput = Omit<ProductType, '_id'>; //or use Partial<ProductType>
 
 export interface Error {
   status?: number;
@@ -45,7 +44,7 @@ export type EmaileDataType = {
 export type UserType = {
   username: string;
   email: string;
-  password: string;
+  password?: string;
   address: string;
   phone: string;
   image?: string;

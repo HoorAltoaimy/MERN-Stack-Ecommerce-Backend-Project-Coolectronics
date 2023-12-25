@@ -3,19 +3,18 @@ import { Document, Schema, model } from 'mongoose'
 import { CategoryInterface } from './categorySchema'
 
 export interface ProductInterface extends Document {
-  id: string
+  //id: string
   title: string
   slug: string
   price: number
-  categoryId: CategoryInterface['_id']
+  category: CategoryInterface['_id']
   image: string
   description: string
   quantity: number
   sold: number
   shipping: number
-  //discounts: DiscountInterface[]
-  createdAt?: string
-  updatedAt?: string
+  // createdAt?: string
+  // updatedAt?: string
 }
 
 export interface DiscountInterface {
@@ -55,7 +54,7 @@ const productSchema = new Schema(
       type: String,
       default: 'public/images/productsImages/defaultProductImage.png',
     },
-    categoryId: {
+    category: {
       type: Schema.Types.ObjectId,
       ref: 'Category',
       required: true,
@@ -74,14 +73,6 @@ const productSchema = new Schema(
       type: Number,
       default: 0,
     },
-    // discounts: [
-    //   {
-    //     type: { type: String, enum: ['percentage', 'fixed'] },
-    //     value: Number,
-    //     start: Date,
-    //     end: Date,
-    //   },
-    // ],
   },
   {
     timestamps: true,

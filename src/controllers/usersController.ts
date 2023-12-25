@@ -1,138 +1,105 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction } from 'express'
+import { JsonWebTokenError, JwtPayload, TokenExpiredError } from 'jsonwebtoken'
+import bcrypt from 'bcrypt'
+import mongoose from 'mongoose'
+import { v2 as cloudinary } from 'cloudinary'
+
+import User, { UserInterface } from '../models/userSchema'
+import { dev } from '../config'
+import { handleSendEmail } from '../helper/sendEmail'
+import { banUserById, deleteUserById, findAllItems, findItemById, unbanUserById } from '../services/usersServices'
+import { UserType } from '../types'
+import { deleteImageHelper } from '../helper/deleteImages'
+import { createJsonWebToken, verifyJsonWebToken } from '../helper/jwtHelper'
+import ApiError from '../errors/ApiError'
 import {
-  JsonWebTokenError,
-  JwtPayload,
-  TokenExpiredError,
-} from "jsonwebtoken";
-import bcrypt from "bcrypt";
-import mongoose from "mongoose";
-import {v2 as cloudinary} from 'cloudinary';
+  deleteFromcloudinary,
+  uploadToCloudinary,
+  valueWithoutExtension,
+} from '../helper/cloudinaryHelper'
 
-import User from "../models/userSchema";
-import { dev } from "../config";
-import { handleSendEmail } from "../helper/sendEmail";
-import {
-  banUserById,
-  findAllItems,
-  findItemById,
-  unbanUserById,
-} from "../services/userServices";
-import { UserType } from "../types";
-import { deleteImageHelper } from "../helper/deleteImages";
-import { createJsonWebToken, verifyJsonWebToken } from "../helper/jwtHelper";
-import ApiError from "../errors/ApiError";
+cloudinary.config({
+  cloud_name: dev.cloud.cloudinaryName,
+  api_key: dev.cloud.cloudinaryApiKey,
+  api_secret: dev.cloud.cloudinaryApiSecret,
+})
 
-cloudinary.config({ 
-  cloud_name: dev.cloud.cloudinaryName, 
-  api_key: dev.cloud.cloudinaryApiKey, 
-  api_secret: dev.cloud.cloudinaryApiSecret 
-});
-
-const successResponse = (
-  res: Response,
-  statusCode = 200,
-  message = "successful",
-  payload = {}
-) => {
+const successResponse = (res: Response, statusCode = 200, message = 'successful', payload = {}) => {
   res.status(statusCode).send({
     message,
     payload: payload,
-  });
-};
+  })
+}
 
-export const getAllUsers = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    let page = Number(req.query.page);
-    const limit = Number(req.query.limit);
-    const search = req.query.search as string;
+    let page = Number(req.query.page)
+    const limit = Number(req.query.limit)
+    const search = req.query.search as string
 
-    const { users, totalPages, currentPage } = await findAllItems(
-      page,
-      limit,
-      search
-    );
+    const { users, totalPages, currentPage } = await findAllItems(page, limit, search)
 
     // ! add pagination
-    successResponse(res, 200, 'All users are returned', {users, totalPages, currentPage})
+    successResponse(res, 200, 'All users are returned', { users, totalPages, currentPage })
   } catch (error) {
-    next(error);
+    next(error)
   }
-};
+}
 
-export const getSingleUser = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const getSingleUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id
-    const user = await findItemById(id);
+    const user = await findItemById(id)
 
-    if(!user){
-      throw new ApiError(404, `No user found with this ${id}`);
+    if (!user) {
+      throw new ApiError(404, `No user found with this ${id}`)
     }
 
-    successResponse(res, 200, "Single user is returned", user);
+    successResponse(res, 200, 'Single user is returned', user)
   } catch (error) {
     if (error instanceof mongoose.Error.CastError) {
-      const error =  new ApiError(404, "Wrong id!");
-      next(error);
+      const error = new ApiError(404, 'User id format is invalid')
+      next(error)
     } else {
-      next(error);
+      next(error)
     }
   }
-};
+}
 
-export const banUser = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const banUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await banUserById(req.params.id);
-    successResponse(res, 200, "User is banned");
+    await banUserById(req.params.id)
+    successResponse(res, 200, 'User is banned')
   } catch (error) {
     if (error instanceof mongoose.Error.CastError) {
-      const error = new ApiError(404, "no user found with this id");
-      next(error);
+      const error = new ApiError(404, 'no user found with this id')
+      next(error)
     } else {
-      next(error);
+      next(error)
     }
   }
-};
+}
 
-export const unbanUser = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const unbanUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await unbanUserById(req.params.id);
-    successResponse(res, 200, "User is unbanned");
+    await unbanUserById(req.params.id)
+    successResponse(res, 200, 'User is unbanned')
   } catch (error) {
     if (error instanceof mongoose.Error.CastError) {
-      const error = new ApiError(404, "no user found with this id");
-      next(error);
+      const error = new ApiError(404, 'no user found with this id')
+      next(error)
     } else {
-      next(error);
+      next(error)
     }
   }
-};
+}
 
-export const processRegisterUser = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const processRegisterUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { username, email, password, address, phone } = req.body;
-    const imagePath = req.file?.path;
+    const { username, email, password, address, phone } = req.body
+    const imagePath = req.file?.path
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10)
 
     const tokenPayload: UserType = {
       username,
@@ -140,217 +107,262 @@ export const processRegisterUser = async (
       password: hashedPassword,
       address,
       phone,
-    };
-
-    if (imagePath) {
-      tokenPayload.image = imagePath;
     }
 
-    const token = await createJsonWebToken(tokenPayload, String(dev.app.jwtUserActivationKey), '10m')
+    if (imagePath) {
+      tokenPayload.image = imagePath
+    }
+
+    const token = await createJsonWebToken(
+      tokenPayload,
+      String(dev.app.jwtUserActivationKey),
+      '10m'
+    )
 
     const emailData = {
       email,
-      subject: "Activate your email",
+      subject: 'Activate your email',
       html: `<h1> Hello ${username}</h1>
             <p> Please activate your account by clicking on the following link: 
             <a href="http://localhost:3000/users/activate/${token}">
             clicking on the following link </a></p>`,
-    };
-
-    await handleSendEmail(emailData);
-
-    successResponse(res, 200, "Check your email inbox to activate your account", token);
-
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const activateUser = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const {token} = req.body;
-   
-    if (!token) {
-      throw new ApiError(404, "Please provide a token");
     }
 
-    const decodedToken = await verifyJsonWebToken(token,
-      String(dev.app.jwtUserActivationKey)) as JwtPayload
+    await handleSendEmail(emailData)
+
+    successResponse(res, 200, 'Check your email inbox to activate your account', token)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const activateUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token } = req.body
+
+    if (!token) {
+      throw new ApiError(404, 'Please provide a token')
+    }
+
+    const decodedToken = (await verifyJsonWebToken(
+      token,
+      String(dev.app.jwtUserActivationKey)
+    )) as JwtPayload
 
     if (!decodedToken) {
-      throw new ApiError(404, "Invalid token");
+      throw new ApiError(404, 'Invalid token')
     }
 
     try {
       //decodedToken.image -> store in cloudinary -> return a url
-      const response = await cloudinary.uploader.upload(decodedToken.image , {folder: 'Ecommerce-cloudinary'});
-      decodedToken.image = response.secure_url
+      const cloudinaryUrl = await uploadToCloudinary(
+        decodedToken.image,
+        'Ecommerce-cloudinary/users'
+      )
+      decodedToken.image = cloudinaryUrl
 
-      await User.create(decodedToken);
-      
-      successResponse(res, 201, "User is registered successfully");
+      await User.create(decodedToken)
+
+      successResponse(res, 201, 'User is registered successfully')
     } catch (error: any) {
-      next(error.message);
+      next(error.message)
     }
-
   } catch (error) {
-    if (
-      error instanceof TokenExpiredError ||
-      error instanceof JsonWebTokenError
-    ) {
+    if (error instanceof TokenExpiredError || error instanceof JsonWebTokenError) {
       const errorMessage =
-        error instanceof TokenExpiredError
-          ? "Your token has expired"
-          : "invalid token";
-      next(new ApiError(401, errorMessage));
+        error instanceof TokenExpiredError ? 'Your token has expired' : 'invalid token'
+      next(new ApiError(401, errorMessage))
     } else {
-      next(error);
+      next(error)
     }
   }
-};
+}
 
-export const deleteUser = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = req.params.id;
-    const user = await User.findByIdAndDelete(id); 
+    const id = req.params.id
 
-    if (user && user.image) {
-      if (user.image !== "public/images/usersImages/defaultUserImage.png") {
-        await deleteImageHelper(user.image);
-      }
-    }
+    // const user = await User.findOne({ _id: id })
+    // if (!user) {
+    //   throw new ApiError(404, 'User not found')
+    // }
 
-    successResponse(res, 200, `User ${id} is deleted`);
+    // if (user && user.image) {
+    //   //delete image from the local server
+    //   //   if (user.image !== "public/images/usersImages/defaultUserImage.png") {
+    //   //     await deleteImageHelper(user.image);
+    //   //   }
+
+    //   //delete image from cloudinary
+    //   const publicId = await valueWithoutExtension(user.image)
+    //   await deleteFromcloudinary(`Ecommerce-cloudinary/users/${publicId}`)
+    // }
+
+    //await User.findByIdAndDelete(id)
+
+    const product = await deleteUserById(id)
+
+    successResponse(res, 200, `User ${id} is deleted`)
   } catch (error) {
     if (error instanceof mongoose.Error.CastError) {
-      const error = new ApiError(404, "Wrong id");
-      next(error);
+      const error = new ApiError(404, 'User id format is invalid')
+      next(error)
     } else {
-      next(error);
+      next(error)
     }
   }
-};
+}
 
-export const updateUser = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const updateUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = req.params.id;
-    const { username, email, password, address, phone } = req.body;
-    const imagePath = req.file?.path;
+    const id = req.params.id
+    const user = await User.findById(id)
+    if (!user) {
+      throw new ApiError(404, `No user found with this id ${id}`)
+    }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const { username, email, address, phone } = req.body 
+    let image = req.file && req.file.path
 
-    const updatedUserData: UserType = {
+    if (image) {
+      const cloudinaryUrl = await uploadToCloudinary(
+        image,
+        'Ecommerce-cloudinary/users'
+      )
+      image = cloudinaryUrl
+    }
+
+    const updatedUserData: Partial<UserInterface> = {
       username,
       email,
-      password: hashedPassword,
+      image,
       address,
       phone,
-    };
-
-    if (imagePath) {
-      updatedUserData.image = imagePath;
-    }
-    else{
-      updatedUserData.image = dev.app.usersImgPath
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      updatedUserData,
-      { new: true }
-    );
-   
+    const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, { new: true })
+
     if (updatedUser) {
-      successResponse(res, 200, `User ${id} is updated`, updatedUser);
+      successResponse(res, 200, `User ${id} is updated`, updatedUser)
+      
+      if (user.image) {
+        const publicId = await valueWithoutExtension(user.image)
+        await deleteFromcloudinary(`Ecommerce-cloudinary/users/${publicId}`)
+      }
     } else {
-      throw new Error(`No user found with this id ${id}`);
+      throw new Error(`No user found with this id ${id}`)
     }
   } catch (error) {
     if (error instanceof mongoose.Error.CastError) {
-      const error = new ApiError(404, "Wrong id");
-      next(error);
+      const error = new ApiError(404, 'User id format is invalid')
+      next(error)
     } else {
-      next(error);
+      next(error)
     }
   }
-};
+}
 
-export const forgetPassword = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const updateAdmin = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    //1-get the email
-    const { email } = req.body;
-
-    //2-check the existance of the email
-    const user = await User.findOne({ email });
+    const id = req.params.id
+    const user = await User.findById(id)
     if (!user) {
-      throw new ApiError(409, "No user exists with this email");
+      throw new ApiError(404, `No user found with this id ${id}`)
     }
 
-    //3-create a token
-    const token = await createJsonWebToken({email}, String(dev.app.jwtResetPasswordKey), '10m')
+    const { username, email } = req.body
+    let image = req.file && req.file.path
 
+    if (image) {
+      const cloudinaryUrl = await uploadToCloudinary(
+        image,
+        'Ecommerce-cloudinary/users'
+      )
+      image = cloudinaryUrl
+    }
 
-    //4-send an email
+    const updatedUserData: Partial<UserInterface> = {
+      username,
+      email,
+      image,
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, { new: true })
+
+    if (updatedUser) {
+      successResponse(res, 200, `User ${id} is updated`, updatedUser)
+      
+      if (user.image) {
+        const publicId = await valueWithoutExtension(user.image)
+        await deleteFromcloudinary(`Ecommerce-cloudinary/users/${publicId}`)
+      }
+    } else {
+      throw new Error(`No user found with this id ${id}`)
+    }
+  } catch (error) {
+    if (error instanceof mongoose.Error.CastError) {
+      const error = new ApiError(404, 'User id format is invalid')
+      next(error)
+    } else {
+      next(error)
+    }
+  }
+}
+
+export const forgetPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body
+
+    const user = await User.findOne({ email })
+
+    if (!user) {
+      throw new ApiError(409, 'No user exists with this email')
+    }
+
+    const token = await createJsonWebToken({ email }, String(dev.app.jwtResetPasswordKey), '10m')
+
     const emailData = {
       email,
-      subject: "Reset password",
+      subject: 'Reset password',
       html: `<h1> Hello ${user.username}</h1>
             <p> Please click on the following link: 
-            <a href="http://localhost:3001/users/reset-password/${token}"> reset </a>
+            <a href="http://localhost:3000/users/reset-password/${token}"> Reset </a>
             to reset
-            </p>`, //put the frontend url instead
-    };
-    await handleSendEmail(emailData);
+            </p>`,
+    }
+    await handleSendEmail(emailData)
 
-    successResponse(res, 200, "Please check your email to reset", token);
+    successResponse(res, 200, 'Please check your email to reset', token)
   } catch (error) {
-    next(error);
+    next(error)
   }
-};
+}
 
-export const resetPassword = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { token, password } = req.body;
+    const { token, password } = req.body
 
-    const decoded = await verifyJsonWebToken(token,
-      String(dev.app.jwtResetPasswordKey)) as JwtPayload;
+    const decoded = (await verifyJsonWebToken(
+      token,
+      String(dev.app.jwtResetPasswordKey)
+    )) as JwtPayload
 
     if (!decoded) {
-      throw new ApiError(400, "invalid token");
+      throw new ApiError(400, 'invalid token')
     }
 
     const updatedPassword = await User.findOneAndUpdate(
       { email: decoded.email },
       { $set: { password: bcrypt.hashSync(password, 10) } },
       { new: true }
-    );
-        console.log(updatedPassword);
-    if(!updatedPassword){
-      throw new ApiError(400, "Password reset is unsuccessful");
+    )
+
+    if (!updatedPassword) {
+      throw new ApiError(400, 'Password reset is unsuccessful')
     }
 
-    successResponse(res, 200, "Password reseted successfully");
+    successResponse(res, 200, 'Password reseted successfully')
   } catch (error) {
     next(error)
   }
-};
+}

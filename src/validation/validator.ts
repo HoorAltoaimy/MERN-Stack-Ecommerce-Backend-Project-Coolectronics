@@ -56,14 +56,14 @@ export const validateUpdateUser = [
       if (value.includes(' ')) {
         throw new Error('Username must not contain spaces')
       }
-      // Check if the username is already in use
-      // const existingUser = await User.findOne({ username: value })
-      // if (existingUser) {
-      //   throw new Error('Username is already in use')
-      // }
+      //Check if the username is already in use
+      const existingUser = await User.findOne({ username: value })
+      if (existingUser) {
+        throw new Error('Username is already in use')
+      }
 
       return true
-    }),
+     }),
   check('email')
     .notEmpty()
     .withMessage('email is required')
@@ -73,7 +73,7 @@ export const validateUpdateUser = [
       if (value.includes(' ')) {
         throw new Error('Email must not contain spaces')
       }
-      //Check if the email is already in use
+       //Check if the email is already in use
       const existingUser = await User.findOne({ email: value })
       if (existingUser) {
         throw new Error('Email is already in use')
@@ -81,11 +81,10 @@ export const validateUpdateUser = [
 
       return true
     }),
-  check('password').notEmpty().withMessage('password is required'),
-  check('address').notEmpty().withMessage('Address is requires'),
-  check('phone').notEmpty().withMessage('Phone number is requires'),
-  check('isAdmin').optional().isBoolean().withMessage('isAdmin must be a boolean'),
-  check('isBan').optional().isBoolean().withMessage('isBan must be a boolean'),
+  // check('address').notEmpty().withMessage('Address is requires'),
+  // check('phone').notEmpty().withMessage('Phone number is requires'),
+  // check('isAdmin').optional().isBoolean().withMessage('isAdmin must be a boolean'),
+  // check('isBan').optional().isBoolean().withMessage('isBan must be a boolean'),
 ]
 
 export const validateActivateUser = [
@@ -109,7 +108,7 @@ export const validateCreateProduct = [
     }),
   check('price').notEmpty().withMessage('Price is required'),
   check('description').notEmpty().withMessage('Description is required'),
-  check('categoryId').notEmpty().withMessage('Category ID is required'),
+  check('category').notEmpty().withMessage('Category ID is required'),
   check('quantity').notEmpty().withMessage('Quantity is required'),
   check('shipping').notEmpty().withMessage('Shipping is required'),
 ]
@@ -122,21 +121,10 @@ export const validateUpdateProduct = [
     .withMessage('Product title must be 3-50 characters'),
   check('price').notEmpty().withMessage('Price is required'),
   check('description').notEmpty().withMessage('Description is required'),
-  check('categoryId').notEmpty().withMessage('Category ID is required'),
+  //check('category').notEmpty().withMessage('Category ID is required'),
   check('quantity').notEmpty().withMessage('Quantity is required'),
   check('shipping').notEmpty().withMessage('Shipping is required'),
 ]
-
-// export const validateDiscount = [
-//   check('type')
-//     .notEmpty()
-//     .withMessage('Please provide type of discount (percentage or fixed)')
-//     .isIn(['percentage', 'fixed'])
-//     .withMessage('Please provide a vlaid discount type'),
-//   check('value').notEmpty().withMessage('Discount value is required'),
-//   check('start').notEmpty().withMessage('Start date is required'),
-//   check('end').notEmpty().withMessage('End date is required'),
-// ]
 
 export const validateIdOrder = [
   param('orderId')
