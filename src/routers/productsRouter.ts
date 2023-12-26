@@ -10,7 +10,9 @@ const productsRouter = Router()
 
 productsRouter.get('/', products.getAllProducts)
 
-productsRouter.get('/:slug', products.getSingleProductBySlug)
+productsRouter.post('/filter-products', products.filterProducts)
+
+productsRouter.get('/singleProduct/:slug', products.getSingleProductBySlug)
 
 productsRouter.post(
   '/',

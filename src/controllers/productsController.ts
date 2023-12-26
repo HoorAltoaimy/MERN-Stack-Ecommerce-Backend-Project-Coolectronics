@@ -3,7 +3,7 @@ import slugify from 'slugify'
 
 import ApiError from '../errors/ApiError'
 import { Product, ProductInterface } from '../models/productSchema'
-import { deleteProductById, findAllProducts } from '../services/productsServices'
+import { deleteProductById, findAllProducts, findFilteredProducts, } from '../services/productsServices'
 import {
   deleteFromcloudinary,
   uploadToCloudinary,
@@ -22,20 +22,49 @@ const successResponse = (res: Response, statusCode = 200, message = 'Successful'
 export const getAllProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     //pagination
-    let page = Number(req.query.page)
-    const limit = Number(req.query.limit)
+    let page = Number(req.query.page) || 1
+    const limit = Number(req.query.limit) || 3
 
     //search
-    const search = req.query.search as string
-
-    //filter by category
-    const categoryFilter = req.query.filter as string
+    const search = req.query.search as string || ''
 
     const { products, count, totalPages, currentPage } = await findAllProducts(
       page,
       limit,
+      search
+    )
+
+    successResponse(res, 200, 'Return all products', {
+      products,
+      pagination: {
+        totalProducts: count,
+        totalPages,
+        currentPage,
+      },
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const filterProducts = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    //pagination
+    let page = Number(req.query.page) || 1
+    const limit = Number(req.query.limit) || 3
+
+    //search
+    const search = req.query.search as string
+
+    //filter by category and price
+    const {selectedCategories, priceRange} = req.body
+
+    const { products, count, totalPages, currentPage } = await findFilteredProducts(
+      page,
+      limit,
       search,
-      categoryFilter
+      selectedCategories,
+      priceRange
     )
 
     successResponse(res, 200, 'Return all products', {
