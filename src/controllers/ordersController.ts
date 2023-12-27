@@ -14,6 +14,13 @@ const gateway = new braintree.BraintreeGateway({
   privateKey: dev.app.braintreePrivateKey,
 })
 
+const successResponse = (res: Response, statusCode = 200, message = 'Successful', payload = {}) => {
+  res.status(statusCode).send({
+    message,
+    payload: payload,
+  })
+}
+
 export const placeOrder = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status, user, products } = req.body
@@ -63,7 +70,10 @@ export const placeOrder = async (req: Request, res: Response, next: NextFunction
     })
 
     await order.save()
-    res.status(201).send({ message: 'Order placed successfully.', order })
+    //res.status(201).send({ message: 'Order placed successfully.', order })
+    successResponse(res, 201, 'Order placed successfully', {
+      order
+    })
   } catch (error) {
     next(error)
   }
@@ -75,7 +85,9 @@ export const getAllOrders = async (req: Request, res: Response, next: NextFuncti
     if (!orders) {
       return res.status(404).send({ message: 'list of Orders not found' })
     }
-    res.status(201).json(orders)
+    //res.status(201).json(orders)
+    successResponse(res, 200, 'Orders returnes successfully', orders
+    )
   } catch (error) {
     next(error)
   }
@@ -145,13 +157,15 @@ export const handleBraintreePayment = async (req: CustomRequest, res: Response, 
       },
     })
     
+    let order;
     if (result.success) {
       console.log('Transaction ID: ' + result.transaction.id)
-      const order = new Order({
+       order = new Order({
         products: cartItems,
         payment: result,
         buyer: req.userId
       })
+      console.log(order);
       await order.save()
 
 
@@ -159,7 +173,7 @@ export const handleBraintreePayment = async (req: CustomRequest, res: Response, 
       console.error(result.message)
     }
 
-    res.status(201).send({ message: 'Order placed successfully' })
+    res.status(201).send({ message: 'Order placed successfully' , payload: order}) //, payload: order
   } catch (error) {
     next(error)
   }
