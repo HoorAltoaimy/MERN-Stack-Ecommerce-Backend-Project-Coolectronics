@@ -2,7 +2,7 @@ import { Schema, model, Document } from "mongoose";
 import { dev } from "../config";
 
 export interface UserInterface extends Document {
-  //_id: string;
+  // _id: string;
   username: string;
   email: string;
   password: string;

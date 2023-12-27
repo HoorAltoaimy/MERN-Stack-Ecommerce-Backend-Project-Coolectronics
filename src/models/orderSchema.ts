@@ -1,36 +1,40 @@
-import mongoose, { Document } from 'mongoose'
+import { Document, Schema, model } from 'mongoose'
 
-export type OrderDocument = Document & {
-  name: string
-  products: mongoose.Schema.Types.ObjectId[]
+import { ProductInterface } from './productSchema'
+import { UserInterface } from './userSchema'
+
+export interface OrederProductInterface {
+  products: ProductInterface['_id']
+  quantity: number
 }
 
-const orderSchema = new mongoose.Schema(
-  {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
+interface OrderPaymentInterface {}
 
-    products: [
-      {
-        product: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'Product',
-        },
-        quantity: {
-          type: Number,
-          default: 1,
-        },
-      },
-    ],
-    totalPriceOfOrder: {
-      type: Number,
-      default: 0,
-    },
+export interface OrderInterface extends Document {
+  products: [
+    {
+      type: Schema.Types.ObjectId
+      ref: 'Product'
+      required: true
+    }
+  ]
+  payment: OrderPaymentInterface
+  buyer: UserInterface['_id']
+  status: 'Under Processing' | 'Shipped' | 'Delivered' | 'Canceled'
+}
+
+const orderSchema = new Schema<OrderInterface>(
+  {
+    products: [{ type: Schema.Types.ObjectId, ref: 'Product', required: true }],
+    payment: { type: Object, required: true },
+    buyer: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     status: {
       type: String,
-      required: true,
+      enum: ['Under Processing', 'Shipped', 'Delivered', 'Canceled'],
+      default: 'Under Processing',
     },
   },
   { timestamps: true }
 )
 
-export default mongoose.model<OrderDocument>('Order', orderSchema)
+export const Order = model<OrderInterface>('Order', orderSchema)

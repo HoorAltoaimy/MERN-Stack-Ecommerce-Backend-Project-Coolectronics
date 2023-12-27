@@ -13,6 +13,9 @@ export const dev = {
     jwtAccessKey: process.env.JWT_ACCESS_KEY,
     smtpUsername: process.env.SMTP_USERNAME,
     smtpPassword: process.env.SMTP_PASSWORD,
+    braintreeMerchantId: process.env.BRAINTREE_MERCHANT_ID,
+    braintreePublicKey: process.env.BRAINTREE_PUBLIC_KEY,
+    braintreePrivateKey: process.env.BRAINTREE_PRIVATE_KEY
   },
   db: {
     url: process.env.MONGODB_URL,
